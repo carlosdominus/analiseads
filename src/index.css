@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-dominus-black: #0A0A0A;
+  --color-dominus-dark: #141414;
+  --color-dominus-green: #00D27A;
+  --color-dominus-green-glow: rgba(0, 210, 122, 0.15);
+  --color-dominus-white: #FFFFFF;
+  --color-dominus-gray: #8E9299;
+}
+
+:root {
+  --bg: var(--color-dominus-black);
+  --card-bg: var(--color-dominus-dark);
+  --text-primary: var(--color-dominus-white);
+  --text-secondary: var(--color-dominus-gray);
+  --accent: var(--color-dominus-green);
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+:root.light {
+  --bg: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --text-primary: #141414;
+  --text-secondary: #666666;
+  --accent: #00A862;
+  --border: rgba(0, 0, 0, 0.1);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dominus-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+
+.dominus-button {
+  background-color: var(--accent);
+  color: white;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 20px var(--color-dominus-green-glow);
+}
+
+.dominus-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px var(--color-dominus-green-glow);
+}
+
+.markdown-body {
+  color: var(--text-primary);
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  font-family: var(--font-display);
+  color: var(--accent);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body hr {
+  border-color: var(--border);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

@@ -1,0 +1,732 @@
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { analyzeCallTranscription } from './services/geminiService';
+import Markdown from 'react-markdown';
+import { 
+  ClipboardCopy, 
+  FileText, 
+  Send, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle,
+  BarChart3,
+  Users,
+  History as HistoryIcon,
+  Settings as SettingsIcon,
+  LayoutDashboard,
+  Moon,
+  Sun,
+  Trash2,
+  TrendingUp,
+  DollarSign,
+  ShoppingCart,
+  ArrowRight,
+  Download
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Cell,
+  LineChart,
+  Line,
+  Legend
+} from 'recharts';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
+// import html2canvas from 'html2canvas'; // Removed in favor of html-to-image for modern CSS support
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+type AdData = {
+  name: string;
+  status: string;
+  metrics: {
+    gasto: number | null;
+    vendas: number | null;
+    roas: number | null;
+    ic: number | null;
+    cpi: number | null;
+    cpc: number | null;
+    ctr: number | null;
+    cpm: number | null;
+    conversao: number | null;
+  };
+};
+
+type AnalysisResult = {
+  id: string;
+  timestamp: number;
+  markdown: string;
+  ads: AdData[];
+  summary: {
+    insight: string;
+    nextTests: string[];
+    pending: string[];
+  };
+};
+
+type View = 'dashboard' | 'history' | 'settings';
+
+export default function App() {
+  const [view, setView] = useState<View>('dashboard');
+  const [transcription, setTranscription] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<AnalysisResult[]>([]);
+  const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [copied, setCopied] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const dashboardRef = useRef<HTMLDivElement>(null);
+
+  // Load history and theme from local storage
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('ad_analytica_history');
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+
+    const savedTheme = localStorage.getItem('ad_analytica_theme') as 'dark' | 'light';
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.classList.toggle('light', savedTheme === 'light');
+    }
+  }, []);
+
+  // Save history to local storage
+  useEffect(() => {
+    localStorage.setItem('ad_analytica_history', JSON.stringify(history));
+  }, [history]);
+
+  // Save theme to local storage
+  useEffect(() => {
+    localStorage.setItem('ad_analytica_theme', theme);
+    document.documentElement.classList.toggle('light', theme === 'light');
+  }, [theme]);
+
+  // Real-feeling progress bar logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      setProgress(0);
+      interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 98) return prev; // Slow down but don't stop completely
+          const increment = prev < 40 ? 4 : prev < 70 ? 1 : prev < 90 ? 0.2 : 0.05;
+          return prev + increment;
+        });
+      }, 150);
+    } else {
+      setProgress(100);
+    }
+    return () => clearInterval(interval);
+  }, [isLoading]);
+
+  const handleAnalyze = async () => {
+    if (!transcription.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await analyzeCallTranscription(transcription);
+      const newAnalysis: AnalysisResult = {
+        ...result,
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+      };
+      
+      // Jump to 100% before showing result
+      setProgress(100);
+      setTimeout(() => {
+        setHistory(prev => [newAnalysis, ...prev]);
+        setCurrentAnalysis(newAnalysis);
+        setTranscription('');
+        setIsLoading(false);
+      }, 500);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro ao processar a transcrição.';
+      setError(errorMessage);
+      console.error(err);
+      setIsLoading(false);
+    }
+  };
+
+  const exportToPDF = async () => {
+    if (!dashboardRef.current || !currentAnalysis) {
+      console.error("Dashboard ref or current analysis missing", { ref: !!dashboardRef.current, analysis: !!currentAnalysis });
+      return;
+    }
+    
+    setIsExporting(true);
+    setError(null); // Clear previous errors
+    
+    try {
+      console.log("Starting PDF export...");
+      // Ensure we are at the top for capture
+      window.scrollTo(0, 0);
+      
+      // Small delay to ensure all animations and charts are settled
+      await new Promise(resolve => setTimeout(resolve, 800)); // Increased delay slightly
+
+      console.log("Capturing dashboard with html-to-image...");
+      // html-to-image is much better at handling modern CSS like oklch/oklab
+      const imgData = await toPng(dashboardRef.current, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: theme === 'dark' ? '#0A0A0A' : '#F5F5F5',
+        style: {
+          display: 'grid',
+          padding: '40px',
+          width: '1400px',
+          height: 'auto',
+          overflow: 'visible',
+        }
+      });
+      
+      if (!imgData) {
+        throw new Error("Falha na captura da imagem: dados vazios.");
+      }
+
+      console.log("Generating PDF...");
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+      
+      // Create a temporary image to get dimensions
+      const img = new Image();
+      img.src = imgData;
+      await new Promise(resolve => img.onload = resolve);
+      
+      const imgWidth = 297; // A4 landscape width in mm
+      const imgHeight = (img.height * imgWidth) / img.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+      
+      const dateStr = currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleDateString('pt-BR').replace(/\//g, '-') : new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      const filename = `ATA_Ads_${dateStr}.pdf`;
+      
+      console.log(`Saving PDF as ${filename}...`);
+      pdf.save(filename);
+      console.log("PDF export complete!");
+    } catch (err) {
+      console.error("Critical failure during PDF export:", err);
+      if (err instanceof Error) {
+        setError(`Erro ao exportar PDF: ${err.message}`);
+      } else {
+        setError("Erro desconhecido ao exportar PDF. Tente novamente em outro navegador.");
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHistory(prev => prev.filter(item => item.id !== id));
+    if (currentAnalysis?.id === id) {
+      setCurrentAnalysis(null);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (currentAnalysis) {
+      navigator.clipboard.writeText(currentAnalysis.markdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const chartData = useMemo(() => {
+    if (!currentAnalysis) return [];
+    return currentAnalysis.ads.map(ad => ({
+      name: ad.name,
+      roas: ad.metrics.roas || 0,
+      gasto: ad.metrics.gasto || 0,
+      vendas: ad.metrics.vendas || 0,
+      ctr: ad.metrics.ctr || 0,
+    }));
+  }, [currentAnalysis]);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Navigation Rail */}
+      <div className="fixed left-0 top-0 bottom-0 w-20 border-r border-white/5 bg-dominus-black hidden lg:flex flex-col items-center py-8 gap-8 z-20">
+        <img 
+          src="https://i.ibb.co/ynpT5hCf/logo-branca.webp" 
+          alt="Dominus" 
+          className="w-12 h-auto mb-4"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+        />
+        
+        <NavButton 
+          active={view === 'dashboard'} 
+          onClick={() => setView('dashboard')} 
+          icon={<LayoutDashboard size={24} />} 
+          label="Dashboard"
+        />
+        <NavButton 
+          active={view === 'history'} 
+          onClick={() => setView('history')} 
+          icon={<HistoryIcon size={24} />} 
+          label="Histórico"
+        />
+        <NavButton 
+          active={view === 'settings'} 
+          onClick={() => setView('settings')} 
+          icon={<SettingsIcon size={24} />} 
+          label="Ajustes"
+        />
+
+        <div className="mt-auto">
+          <button 
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-3 rounded-xl hover:bg-white/5 transition-colors text-dominus-gray hover:text-white"
+          >
+            {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Header */}
+      <header className="lg:hidden h-16 border-b border-white/5 bg-dominus-black flex items-center justify-between px-6 sticky top-0 z-20">
+        <img 
+          src="https://i.ibb.co/ynpT5hCf/logo-branca.webp" 
+          alt="Dominus" 
+          className="h-6 w-auto"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+        />
+        <div className="flex gap-4">
+          <button onClick={() => setView('dashboard')} className={cn("p-2", view === 'dashboard' ? "text-dominus-green" : "text-dominus-gray")}>
+            <LayoutDashboard size={20} />
+          </button>
+          <button onClick={() => setView('history')} className={cn("p-2", view === 'history' ? "text-dominus-green" : "text-dominus-gray")}>
+            <HistoryIcon size={20} />
+          </button>
+          <button onClick={() => setView('settings')} className={cn("p-2", view === 'settings' ? "text-dominus-green" : "text-dominus-gray")}>
+            <SettingsIcon size={20} />
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 lg:pl-20">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12 py-10">
+          
+          <AnimatePresence mode="wait">
+            {view === 'dashboard' && (
+              <motion.div 
+                key="dashboard"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-10"
+              >
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                  <div>
+                    <h2 className="text-4xl font-display font-bold tracking-tight mb-2">
+                      Análise de <span className="text-dominus-green">Performance</span>
+                    </h2>
+                    <p className="text-dominus-gray">Transforme transcrições em inteligência de dados.</p>
+                  </div>
+                  
+                  {currentAnalysis && (
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setCurrentAnalysis(null)}
+                        className="px-6 py-3 rounded-full border border-white/10 font-semibold hover:bg-white/5 transition-colors"
+                      >
+                        Nova Análise
+                      </button>
+                      <button 
+                        onClick={exportToPDF}
+                        disabled={isExporting}
+                        className="px-6 py-3 rounded-full border border-dominus-green/30 text-dominus-green font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                        <span>{isExporting ? 'Exportando...' : 'Exportar PDF'}</span>
+                      </button>
+                      <button 
+                        onClick={copyToClipboard}
+                        className="dominus-button px-8 py-3 flex items-center gap-2"
+                      >
+                        {copied ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
+                        <span>{copied ? 'Copiado' : 'Copiar ATA'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {isLoading ? (
+                  <motion.div 
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex-1 flex flex-col items-center justify-center p-20 text-center space-y-8"
+                  >
+                    <div className="relative">
+                      <Loader2 size={80} className="text-dominus-green animate-spin opacity-20" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-display font-bold text-dominus-green">
+                          {Math.floor(progress)}%
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full max-w-md space-y-4">
+                      <h3 className="text-2xl font-display font-bold">Processando Inteligência...</h3>
+                      
+                      {/* Progress Bar Container */}
+                      <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                        <motion.div 
+                          className="h-full bg-dominus-green shadow-[0_0_20px_rgba(0,210,122,0.6)]"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progress}%` }}
+                          transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+                        />
+                      </div>
+                      
+                      <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-dominus-gray">
+                        <motion.span
+                          animate={{ opacity: [0.4, 1, 0.4] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
+                          {progress < 30 ? "Lendo transcrição..." : 
+                           progress < 60 ? "Extraindo métricas de ads..." : 
+                           progress < 85 ? "Gerando conclusões da equipe..." : 
+                           "Finalizando ATA estruturada..."}
+                        </motion.span>
+                        <span>{Math.floor(progress)}%</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-dominus-gray max-w-[320px] leading-relaxed italic opacity-50">
+                      "A análise de performance é o que separa o chute da escala real."
+                    </p>
+                  </motion.div>
+                ) : !currentAnalysis ? (
+                  <div className="grid grid-cols-1 gap-8">
+                    <div className="dominus-card p-8 space-y-6">
+                      <div className="flex items-center gap-3 text-dominus-green">
+                        <FileText size={20} />
+                        <span className="text-sm font-bold uppercase tracking-widest">Entrada de Dados</span>
+                      </div>
+                      <textarea
+                        value={transcription}
+                        onChange={(e) => setTranscription(e.target.value)}
+                        placeholder="Cole a transcrição da call aqui..."
+                        className="w-full min-h-[300px] bg-dominus-black/50 border border-white/5 rounded-2xl p-6 focus:outline-none focus:border-dominus-green/50 transition-colors font-mono text-sm leading-relaxed"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          onClick={handleAnalyze}
+                          disabled={isLoading || !transcription.trim()}
+                          className="dominus-button px-12 py-4 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send size={20} />
+                          <span>Gerar Inteligência</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div ref={dashboardRef} id="dashboard-capture" className="grid grid-cols-1 xl:grid-cols-3 gap-8 p-4 rounded-3xl">
+                    {/* Charts & Stats */}
+                    <div className="xl:col-span-2 space-y-8">
+                      {/* Key Stats */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <StatCard 
+                          label="Total Gasto" 
+                          value={`R$ ${chartData.reduce((acc, curr) => acc + curr.gasto, 0).toFixed(2)}`} 
+                          icon={<DollarSign size={20} />}
+                        />
+                        <StatCard 
+                          label="Total Vendas" 
+                          value={chartData.reduce((acc, curr) => acc + curr.vendas, 0).toString()} 
+                          icon={<ShoppingCart size={20} />}
+                        />
+                        <StatCard 
+                          label="ROAS Médio" 
+                          value={(chartData.reduce((acc, curr) => acc + curr.roas, 0) / (chartData.length || 1)).toFixed(2)} 
+                          icon={<TrendingUp size={20} />}
+                        />
+                      </div>
+
+                      {/* ROAS Comparison Chart */}
+                      <div className="dominus-card p-8">
+                        <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+                          <TrendingUp size={18} className="text-dominus-green" />
+                          Comparativo de ROAS por Ad
+                        </h3>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                              <XAxis 
+                                dataKey="name" 
+                                stroke="var(--text-secondary)" 
+                                fontSize={12} 
+                                tickLine={false} 
+                                axisLine={false}
+                              />
+                              <YAxis 
+                                stroke="var(--text-secondary)" 
+                                fontSize={12} 
+                                tickLine={false} 
+                                axisLine={false}
+                              />
+                              <Tooltip 
+                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                contentStyle={{ 
+                                  backgroundColor: 'var(--card-bg)', 
+                                  border: '1px solid var(--border)',
+                                  borderRadius: '12px',
+                                  color: 'var(--text-primary)'
+                                }}
+                                itemStyle={{ color: 'var(--text-primary)' }}
+                                labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '4px' }}
+                              />
+                              <Bar dataKey="roas" radius={[4, 4, 0, 0]}>
+                                {chartData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.roas >= 2 ? 'var(--color-dominus-green)' : '#ff4e00'} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* Funnel Chart */}
+                      <div className="dominus-card p-8">
+                        <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+                          <BarChart3 size={18} className="text-dominus-green" />
+                          Gasto vs Vendas
+                        </h3>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                              <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                              <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: 'var(--card-bg)', 
+                                  border: '1px solid var(--border)',
+                                  borderRadius: '12px',
+                                  color: 'var(--text-primary)'
+                                }}
+                                itemStyle={{ color: 'var(--text-primary)' }}
+                                labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '4px' }}
+                              />
+                              <Legend />
+                              <Line type="monotone" dataKey="gasto" stroke="#8884d8" strokeWidth={2} dot={{ r: 4 }} />
+                              <Line type="monotone" dataKey="vendas" stroke="var(--color-dominus-green)" strokeWidth={2} dot={{ r: 4 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ATA Content */}
+                    <div className="xl:col-span-1">
+                      <div className="dominus-card p-8 h-full overflow-y-auto">
+                        <div className="markdown-body prose prose-invert prose-sm max-w-none">
+                          <Markdown>{currentAnalysis.markdown}</Markdown>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {view === 'history' && (
+              <motion.div 
+                key="history"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+              >
+                <h2 className="text-4xl font-display font-bold tracking-tight">
+                  Histórico de <span className="text-dominus-green">Análises</span>
+                </h2>
+
+                {history.length === 0 ? (
+                  <div className="dominus-card p-20 text-center opacity-30">
+                    <HistoryIcon size={64} className="mx-auto mb-6" />
+                    <p>Nenhuma análise encontrada no histórico.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {history.map((item) => (
+                      <div 
+                        key={item.id}
+                        onClick={() => {
+                          setCurrentAnalysis(item);
+                          setView('dashboard');
+                        }}
+                        className="dominus-card p-6 hover:border-dominus-green/30 transition-all cursor-pointer group"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-2 text-dominus-green">
+                            <FileText size={16} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">
+                              {new Date(item.timestamp).toLocaleDateString('pt-BR', { 
+                                day: '2-digit', 
+                                month: 'short', 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={(e) => deleteHistoryItem(item.id, e)}
+                            className="p-2 text-dominus-gray hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                        <h3 className="text-lg font-bold mb-2 line-clamp-1">{item.ads[0]?.name || 'Análise sem nome'}</h3>
+                        <p className="text-sm text-dominus-gray line-clamp-2 mb-4 italic">
+                          "{item.summary.insight}"
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex -space-x-2">
+                            {item.ads.slice(0, 3).map((ad, i) => (
+                              <div key={i} className="w-8 h-8 rounded-full bg-dominus-black border border-white/10 flex items-center justify-center text-[10px] font-bold">
+                                {ad.name.charAt(0)}
+                              </div>
+                            ))}
+                            {item.ads.length > 3 && (
+                              <div className="w-8 h-8 rounded-full bg-dominus-black border border-white/10 flex items-center justify-center text-[10px] font-bold text-dominus-green">
+                                +{item.ads.length - 3}
+                              </div>
+                            )}
+                          </div>
+                          <ArrowRight size={16} className="text-dominus-gray group-hover:text-dominus-green group-hover:translate-x-1 transition-all" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {view === 'settings' && (
+              <motion.div 
+                key="settings"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="max-w-2xl space-y-8"
+              >
+                <h2 className="text-4xl font-display font-bold tracking-tight">
+                  Configurações da <span className="text-dominus-green">Plataforma</span>
+                </h2>
+
+                <div className="dominus-card p-8 space-y-8">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold mb-1">Tema da Interface</h3>
+                      <p className="text-sm text-dominus-gray">Escolha entre o modo claro ou escuro.</p>
+                    </div>
+                    <div className="flex bg-dominus-black p-1 rounded-full border border-white/5">
+                      <button 
+                        onClick={() => setTheme('light')}
+                        className={cn(
+                          "p-2 rounded-full transition-all",
+                          theme === 'light' ? "bg-white text-dominus-black shadow-lg" : "text-dominus-gray"
+                        )}
+                      >
+                        <Sun size={20} />
+                      </button>
+                      <button 
+                        onClick={() => setTheme('dark')}
+                        className={cn(
+                          "p-2 rounded-full transition-all",
+                          theme === 'dark' ? "bg-dominus-green text-white shadow-lg" : "text-dominus-gray"
+                        )}
+                      >
+                        <Moon size={20} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-8 border-t border-white/5">
+                    <h3 className="font-bold mb-4">Sobre a Dominus</h3>
+                    <p className="text-sm text-dominus-gray leading-relaxed">
+                      Estamos sempre em busca de talentos que possuam sede por resultados e excelência técnica. 
+                      Se você busca um ambiente de alto crescimento, seu lugar é aqui.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+        </div>
+      </main>
+
+      {error && (
+        <div className="fixed bottom-8 right-8 bg-red-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 z-50">
+          <AlertCircle size={20} />
+          <span className="font-medium">{error}</span>
+          <button onClick={() => setError(null)} className="p-1 hover:bg-white/20 rounded">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "group relative p-3 rounded-2xl transition-all duration-300",
+        active ? "bg-dominus-green text-white shadow-[0_0_20px_rgba(0,210,122,0.3)]" : "text-dominus-gray hover:text-white hover:bg-white/5"
+      )}
+    >
+      {icon}
+      <span className="absolute left-full ml-4 px-2 py-1 bg-dominus-dark border border-white/10 rounded text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function StatCard({ label, value, icon }: { label: string, value: string, icon: React.ReactNode }) {
+  return (
+    <div className="dominus-card p-6 flex items-center gap-4">
+      <div className="w-12 h-12 rounded-2xl bg-dominus-green/10 flex items-center justify-center text-dominus-green">
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-dominus-gray mb-1">{label}</p>
+        <p className="text-xl font-display font-bold">{value}</p>
+      </div>
+    </div>
+  );
+}
