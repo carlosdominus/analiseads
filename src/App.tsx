@@ -410,19 +410,19 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-10"
               >
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="sticky top-0 z-30 bg-dominus-black/90 backdrop-blur-md py-4 border-b border-white/5 -mx-6 lg:-mx-12 px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-4xl font-display font-bold tracking-tight mb-2">
+                    <h2 className="text-2xl font-display font-bold tracking-tight">
                       Análise de <span className="text-dominus-green">Performance</span>
                     </h2>
-                    <p className="text-dominus-gray">Transforme transcrições em inteligência de dados.</p>
+                    <p className="text-xs text-dominus-gray">Transforme transcrições em inteligência de dados.</p>
                   </div>
                   
                   {currentAnalysis && (
-                    <div className="flex gap-3">
+                    <div className="flex items-center gap-3">
                       <button 
                         onClick={() => setCurrentAnalysis(null)}
-                        className="px-6 py-3 rounded-full border border-white/10 font-semibold hover:bg-white/5 transition-colors"
+                        className="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold hover:bg-white/5 transition-colors"
                       >
                         Nova Análise
                       </button>
@@ -430,11 +430,11 @@ export default function App() {
                         <button 
                           onClick={() => setShowExportMenu(!showExportMenu)}
                           disabled={isExporting}
-                          className="px-6 py-3 rounded-full border border-dominus-green/30 text-dominus-green font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-2 disabled:opacity-50"
+                          className="px-4 py-2 rounded-full border border-dominus-green/30 text-dominus-green text-xs font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-1.5 disabled:opacity-50"
                         >
-                          {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                          {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                           <span>{isExporting ? 'Exportando...' : 'Exportar'}</span>
-                          <ChevronDown size={16} />
+                          <ChevronDown size={14} />
                         </button>
 
                         <AnimatePresence>
