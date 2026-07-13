@@ -49,6 +49,7 @@ function cn(...inputs: ClassValue[]) {
 
 type AdData = {
   name: string;
+  fullName?: string;
   status: string;
   metrics: {
     gasto: number | null;
@@ -326,6 +327,7 @@ export default function App() {
     if (!currentAnalysis || !Array.isArray(currentAnalysis.ads)) return [];
     return currentAnalysis.ads.map(ad => ({
       name: ad.name || 'Ad',
+      fullName: ad.fullName || ad.name || 'Ad',
       roas: ad?.metrics?.roas || 0,
       gasto: ad?.metrics?.gasto || 0,
       vendas: ad?.metrics?.vendas || 0,
@@ -645,6 +647,7 @@ export default function App() {
                                     />
                                     <Tooltip 
                                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                      labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                                       contentStyle={{ 
                                         backgroundColor: 'var(--card-bg)', 
                                         border: '1px solid var(--border)',
@@ -677,6 +680,7 @@ export default function App() {
                                     <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
                                     <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
                                     <Tooltip 
+                                      labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                                       contentStyle={{ 
                                         backgroundColor: 'var(--card-bg)', 
                                         border: '1px solid var(--border)',
