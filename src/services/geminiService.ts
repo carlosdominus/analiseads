@@ -95,15 +95,17 @@ export async function analyzeCallTranscription(transcription: string) {
         .replace(/\\"/g, '"');
     }
 
-    // Fallback: If no ads were provided by webhook but we have markdown text, extract specific ad numbers (e.g. AD 017, Ad 21, é de 22, RM 35)
+    // Fallback: If no ads were provided by webhook but we have markdown text, extract specific ad numbers (e.g. AD 017, Ad 21, RM 35)
     if (!adsList || adsList.length === 0) {
-      // Strict regex matching AD, Ad, Remessa, RM, or "é de" followed by numbers
-      const regex = /\b(?:AD|Ad|Remessa|RM|é\s+de)\s*([0-9]+)\b/gi;
+      // Strict regex matching AD, Ad, Remessa, RM followed by numbers or valid identifiers
+      const regex = /\b(?:AD|Ad|Remessa|RM)\s*([0-9]+[A-Za-z0-9_-]*)\b/gi;
       let match;
       const foundAds = new Map<string, boolean>();
       while ((match = regex.exec(rawMarkdown)) !== null) {
-        const num = match[1];
-        foundAds.set(`Ad ${num}`, true);
+        const id = match[1];
+        // Exclude common false positives if any slip through
+        const fullName = `Ad ${id}`;
+        foundAds.set(fullName, true);
       }
 
       if (foundAds.size > 0) {
