@@ -39,7 +39,7 @@ import {
 } from 'recharts';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
 // import html2canvas from 'html2canvas'; // Removed in favor of html-to-image for modern CSS support
 
@@ -186,10 +186,10 @@ export default function App() {
       // Small delay to ensure all animations and charts are settled
       await new Promise(resolve => setTimeout(resolve, 800)); // Increased delay slightly
 
-      console.log("Capturing dashboard with html-to-image...");
-      // html-to-image is much better at handling modern CSS like oklch/oklab
-      const imgData = await toPng(dashboardRef.current, {
-        quality: 0.95,
+      console.log("Capturing dashboard with html-to-image (JPEG)...");
+      // html-to-image toJpeg avoids PNG signature issues
+      const imgData = await toJpeg(dashboardRef.current, {
+        quality: 0.92,
         pixelRatio: 2,
         backgroundColor: theme === 'dark' ? '#0A0A0A' : '#F5F5F5',
         style: {
@@ -221,7 +221,7 @@ export default function App() {
       const imgWidth = 297; // A4 landscape width in mm
       const imgHeight = (img.height * imgWidth) / img.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
       
       const dateStr = currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleDateString('pt-BR').replace(/\//g, '-') : new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
       const filename = `ATA_Ads_${dateStr}.pdf`;
