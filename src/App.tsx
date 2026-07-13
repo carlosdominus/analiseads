@@ -529,7 +529,7 @@ export default function App() {
                         value={transcription}
                         onChange={(e) => setTranscription(e.target.value)}
                         placeholder="Cole a transcrição da call aqui..."
-                        className="w-full min-h-[300px] bg-dominus-black/50 border border-white/5 rounded-2xl p-6 focus:outline-none focus:border-dominus-green/50 transition-colors font-mono text-sm leading-relaxed"
+                        className="w-full min-h-[300px] bg-dominus-black/50 border border-white/5 rounded-2xl p-6 focus:outline-none focus:border-dominus-green/50 transition-colors font-mono text-sm leading-relaxed placeholder:text-dominus-gray placeholder:opacity-80 text-white"
                       />
                       <div className="flex justify-end">
                         <button
