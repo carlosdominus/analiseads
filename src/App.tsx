@@ -410,19 +410,50 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-10"
               >
-                <div className="sticky top-0 z-30 bg-dominus-black/90 backdrop-blur-md py-4 border-b border-white/5 -mx-6 lg:-mx-12 px-6 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-display font-bold tracking-tight">
-                      Análise de <span className="text-dominus-green">Performance</span>
-                    </h2>
-                    <p className="text-xs text-dominus-gray">Transforme transcrições em inteligência de dados.</p>
+                <div className="sticky top-0 z-30 bg-dominus-black/95 backdrop-blur-md py-3 px-6 lg:px-12 border-b border-white/10 -mx-6 lg:-mx-12 flex flex-col xl:flex-row items-center justify-between gap-4">
+                  <div className="flex flex-col md:flex-row items-center gap-6 w-full xl:w-auto justify-between xl:justify-start">
+                    <div>
+                      <h2 className="text-xl font-display font-bold tracking-tight">
+                        Análise de <span className="text-dominus-green">Performance</span>
+                      </h2>
+                    </div>
+
+                    {currentAnalysis && (
+                      <div className="flex items-center gap-2 bg-dominus-dark/80 p-1 rounded-full border border-white/5">
+                        <button
+                          onClick={() => setSubView('resumo')}
+                          className={`px-4 py-1.5 rounded-full font-semibold text-xs transition-all flex items-center gap-1.5 ${
+                            subView === 'resumo' 
+                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_15px_rgba(0,210,122,0.4)]' 
+                              : 'text-dominus-gray hover:text-white'
+                          }`}
+                        >
+                          <FileText size={14} />
+                          <span>Resumo (ATA)</span>
+                        </button>
+                        <button
+                          onClick={() => setSubView('dashboard')}
+                          className={`px-4 py-1.5 rounded-full font-semibold text-xs transition-all flex items-center gap-1.5 ${
+                            subView === 'dashboard' 
+                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_15px_rgba(0,210,122,0.4)]' 
+                              : 'text-dominus-gray hover:text-white'
+                          }`}
+                        >
+                          <TrendingUp size={14} />
+                          <span>Dashboard & Gráficos</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                   
                   {currentAnalysis && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-full xl:w-auto justify-end">
+                      <div className="text-xs text-dominus-gray font-mono hidden 2xl:block">
+                        {currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleString('pt-BR') : ''}
+                      </div>
                       <button 
                         onClick={() => setCurrentAnalysis(null)}
-                        className="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold hover:bg-white/5 transition-colors"
+                        className="px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-semibold hover:bg-white/5 transition-colors"
                       >
                         Nova Análise
                       </button>
@@ -430,11 +461,11 @@ export default function App() {
                         <button 
                           onClick={() => setShowExportMenu(!showExportMenu)}
                           disabled={isExporting}
-                          className="px-4 py-2 rounded-full border border-dominus-green/30 text-dominus-green text-xs font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                          className="px-3.5 py-1.5 rounded-full border border-dominus-green/30 text-dominus-green text-xs font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-1 disabled:opacity-50"
                         >
-                          {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                          {isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
                           <span>{isExporting ? 'Exportando...' : 'Exportar'}</span>
-                          <ChevronDown size={14} />
+                          <ChevronDown size={12} />
                         </button>
 
                         <AnimatePresence>
@@ -450,23 +481,23 @@ export default function App() {
                                   setShowExportMenu(false);
                                   exportToPDF();
                                 }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                                className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
                               >
-                                <FileText size={16} className="text-dominus-green" />
+                                <FileText size={14} className="text-dominus-green" />
                                 <span>PDF (.pdf)</span>
                               </button>
                               <button
                                 onClick={exportToDocx}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                                className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
                               >
-                                <FileText size={16} className="text-blue-400" />
+                                <FileText size={14} className="text-blue-400" />
                                 <span>Word (.doc/.docx)</span>
                               </button>
                               <button
                                 onClick={exportToMarkdown}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                                className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
                               >
-                                <FileText size={16} className="text-amber-400" />
+                                <FileText size={14} className="text-amber-400" />
                                 <span>Markdown (.md)</span>
                               </button>
                             </motion.div>
@@ -475,9 +506,9 @@ export default function App() {
                       </div>
                       <button 
                         onClick={copyToClipboard}
-                        className="dominus-button px-8 py-3 flex items-center gap-2"
+                        className="dominus-button px-5 py-2 text-xs flex items-center gap-1.5"
                       >
-                        {copied ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
+                        {copied ? <CheckCircle2 size={14} /> : <ClipboardCopy size={14} />}
                         <span>{copied ? 'Copiado' : 'Copiar ATA'}</span>
                       </button>
                     </div>
@@ -559,38 +590,6 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Subheader Navigation Tabs */}
-                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                      <div className="flex items-center gap-3 bg-dominus-black/60 p-1.5 rounded-full border border-white/5">
-                        <button
-                          onClick={() => setSubView('resumo')}
-                          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all flex items-center gap-2 ${
-                            subView === 'resumo' 
-                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_20px_rgba(0,210,122,0.4)]' 
-                              : 'text-dominus-gray hover:text-white'
-                          }`}
-                        >
-                          <FileText size={16} />
-                          <span>Resumo (ATA)</span>
-                        </button>
-                        <button
-                          onClick={() => setSubView('dashboard')}
-                          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all flex items-center gap-2 ${
-                            subView === 'dashboard' 
-                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_20px_rgba(0,210,122,0.4)]' 
-                              : 'text-dominus-gray hover:text-white'
-                          }`}
-                        >
-                          <TrendingUp size={16} />
-                          <span>Dashboard & Gráficos</span>
-                        </button>
-                      </div>
-
-                      <div className="text-xs text-dominus-gray font-mono hidden sm:block">
-                        {currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleString('pt-BR') : ''}
-                      </div>
-                    </div>
-
                     {/* Content Area */}
                     <div ref={dashboardRef} id="dashboard-capture" className="p-2 rounded-3xl">
                       {subView === 'resumo' ? (
