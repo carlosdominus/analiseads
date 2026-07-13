@@ -176,28 +176,26 @@ export default function App() {
     }
     
     setIsExporting(true);
-    setError(null); // Clear previous errors
+    setError(null);
     
     try {
       console.log("Starting PDF export...");
-      // Ensure we are at the top for capture
       window.scrollTo(0, 0);
-      
-      // Small delay to ensure all animations and charts are settled
-      await new Promise(resolve => setTimeout(resolve, 800)); // Increased delay slightly
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      console.log("Capturing dashboard with html-to-image (JPEG)...");
-      // html-to-image toJpeg avoids PNG signature issues
-      const imgData = await toJpeg(dashboardRef.current, {
+      const el = dashboardRef.current;
+      const fullHeight = el.scrollHeight || 1200;
+
+      console.log("Capturing full dashboard/ATA height with html-to-image...", { fullHeight });
+      const imgData = await toJpeg(el, {
         quality: 0.92,
         pixelRatio: 2,
         backgroundColor: theme === 'dark' ? '#0A0A0A' : '#F5F5F5',
         style: {
-          display: 'grid',
-          padding: '40px',
           width: '1400px',
-          height: 'auto',
+          height: `${fullHeight}px`,
           overflow: 'visible',
+          position: 'relative',
         }
       });
       
@@ -205,23 +203,37 @@ export default function App() {
         throw new Error("Falha na captura da imagem: dados vazios.");
       }
 
-      console.log("Generating PDF...");
+      console.log("Generating multi-page PDF...");
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
         compress: true
       });
       
-      // Create a temporary image to get dimensions
       const img = new Image();
       img.src = imgData;
       await new Promise(resolve => img.onload = resolve);
       
-      const imgWidth = 297; // A4 landscape width in mm
+      const pageWidth = 210; // A4 portrait width in mm
+      const pageHeight = 297; // A4 portrait height in mm
+      const imgWidth = pageWidth;
       const imgHeight = (img.height * imgWidth) / img.width;
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // First page
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+
+      // Subsequent pages if content is long
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight; // Top offset for next page
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
       
       const dateStr = currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleDateString('pt-BR').replace(/\//g, '-') : new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
       const filename = `ATA_Ads_${dateStr}.pdf`;
