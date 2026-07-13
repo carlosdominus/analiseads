@@ -83,6 +83,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
+  const [subView, setSubView] = useState<'resumo' | 'dashboard'>('resumo');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -255,13 +256,13 @@ export default function App() {
   };
 
   const chartData = useMemo(() => {
-    if (!currentAnalysis) return [];
+    if (!currentAnalysis || !Array.isArray(currentAnalysis.ads)) return [];
     return currentAnalysis.ads.map(ad => ({
-      name: ad.name,
-      roas: ad.metrics.roas || 0,
-      gasto: ad.metrics.gasto || 0,
-      vendas: ad.metrics.vendas || 0,
-      ctr: ad.metrics.ctr || 0,
+      name: ad.name || 'Ad',
+      roas: ad?.metrics?.roas || 0,
+      gasto: ad?.metrics?.gasto || 0,
+      vendas: ad?.metrics?.vendas || 0,
+      ctr: ad?.metrics?.ctr || 0,
     }));
   }, [currentAnalysis]);
 
@@ -449,110 +450,146 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div ref={dashboardRef} id="dashboard-capture" className="grid grid-cols-1 xl:grid-cols-3 gap-8 p-4 rounded-3xl">
-                    {/* Charts & Stats */}
-                    <div className="xl:col-span-2 space-y-8">
-                      {/* Key Stats */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <StatCard 
-                          label="Total Gasto" 
-                          value={`R$ ${chartData.reduce((acc, curr) => acc + curr.gasto, 0).toFixed(2)}`} 
-                          icon={<DollarSign size={20} />}
-                        />
-                        <StatCard 
-                          label="Total Vendas" 
-                          value={chartData.reduce((acc, curr) => acc + curr.vendas, 0).toString()} 
-                          icon={<ShoppingCart size={20} />}
-                        />
-                        <StatCard 
-                          label="ROAS Médio" 
-                          value={(chartData.reduce((acc, curr) => acc + curr.roas, 0) / (chartData.length || 1)).toFixed(2)} 
-                          icon={<TrendingUp size={20} />}
-                        />
+                  <div className="space-y-6">
+                    {/* Subheader Navigation Tabs */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                      <div className="flex items-center gap-3 bg-dominus-black/60 p-1.5 rounded-full border border-white/5">
+                        <button
+                          onClick={() => setSubView('resumo')}
+                          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all flex items-center gap-2 ${
+                            subView === 'resumo' 
+                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_20px_rgba(0,210,122,0.4)]' 
+                              : 'text-dominus-gray hover:text-white'
+                          }`}
+                        >
+                          <FileText size={16} />
+                          <span>Resumo (ATA)</span>
+                        </button>
+                        <button
+                          onClick={() => setSubView('dashboard')}
+                          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all flex items-center gap-2 ${
+                            subView === 'dashboard' 
+                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_20px_rgba(0,210,122,0.4)]' 
+                              : 'text-dominus-gray hover:text-white'
+                          }`}
+                        >
+                          <TrendingUp size={16} />
+                          <span>Dashboard & Gráficos</span>
+                        </button>
                       </div>
 
-                      {/* ROAS Comparison Chart */}
-                      <div className="dominus-card p-8">
-                        <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
-                          <TrendingUp size={18} className="text-dominus-green" />
-                          Comparativo de ROAS por Ad
-                        </h3>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                              <XAxis 
-                                dataKey="name" 
-                                stroke="var(--text-secondary)" 
-                                fontSize={12} 
-                                tickLine={false} 
-                                axisLine={false}
-                              />
-                              <YAxis 
-                                stroke="var(--text-secondary)" 
-                                fontSize={12} 
-                                tickLine={false} 
-                                axisLine={false}
-                              />
-                              <Tooltip 
-                                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                contentStyle={{ 
-                                  backgroundColor: 'var(--card-bg)', 
-                                  border: '1px solid var(--border)',
-                                  borderRadius: '12px',
-                                  color: 'var(--text-primary)'
-                                }}
-                                itemStyle={{ color: 'var(--text-primary)' }}
-                                labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '4px' }}
-                              />
-                              <Bar dataKey="roas" radius={[4, 4, 0, 0]}>
-                                {chartData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.roas >= 2 ? 'var(--color-dominus-green)' : '#ff4e00'} />
-                                ))}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-
-                      {/* Funnel Chart */}
-                      <div className="dominus-card p-8">
-                        <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
-                          <BarChart3 size={18} className="text-dominus-green" />
-                          Gasto vs Vendas
-                        </h3>
-                        <div className="h-[300px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                              <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                              <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: 'var(--card-bg)', 
-                                  border: '1px solid var(--border)',
-                                  borderRadius: '12px',
-                                  color: 'var(--text-primary)'
-                                }}
-                                itemStyle={{ color: 'var(--text-primary)' }}
-                                labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '4px' }}
-                              />
-                              <Legend />
-                              <Line type="monotone" dataKey="gasto" stroke="#8884d8" strokeWidth={2} dot={{ r: 4 }} />
-                              <Line type="monotone" dataKey="vendas" stroke="var(--color-dominus-green)" strokeWidth={2} dot={{ r: 4 }} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
+                      <div className="text-xs text-dominus-gray font-mono hidden sm:block">
+                        {currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleString('pt-BR') : ''}
                       </div>
                     </div>
 
-                    {/* ATA Content */}
-                    <div className="xl:col-span-1">
-                      <div className="dominus-card p-8 h-full overflow-y-auto">
-                        <div className="markdown-body prose prose-invert prose-sm max-w-none">
-                          <Markdown>{currentAnalysis.markdown}</Markdown>
+                    {/* Content Area */}
+                    <div ref={dashboardRef} id="dashboard-capture" className="p-2 rounded-3xl">
+                      {subView === 'resumo' ? (
+                        <div className="dominus-card p-10 max-w-4xl mx-auto shadow-2xl">
+                          <div className="markdown-body prose prose-invert max-w-none text-base leading-relaxed">
+                            <Markdown>{currentAnalysis.markdown}</Markdown>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                          {/* Charts & Stats */}
+                          <div className="xl:col-span-3 space-y-8">
+                            {/* Key Stats */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                              <StatCard 
+                                label="Total Gasto" 
+                                value={`R$ ${chartData.reduce((acc, curr) => acc + curr.gasto, 0).toFixed(2)}`} 
+                                icon={<DollarSign size={20} />}
+                              />
+                              <StatCard 
+                                label="Total Vendas" 
+                                value={chartData.reduce((acc, curr) => acc + curr.vendas, 0).toString()} 
+                                icon={<ShoppingCart size={20} />}
+                              />
+                              <StatCard 
+                                label="ROAS Médio" 
+                                value={(chartData.reduce((acc, curr) => acc + curr.roas, 0) / (chartData.length || 1)).toFixed(2)} 
+                                icon={<TrendingUp size={20} />}
+                              />
+                            </div>
+
+                            {/* ROAS Comparison Chart */}
+                            <div className="dominus-card p-8">
+                              <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+                                <TrendingUp size={18} className="text-dominus-green" />
+                                Comparativo de ROAS por Ad
+                              </h3>
+                              <div className="h-[350px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <BarChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis 
+                                      dataKey="name" 
+                                      stroke="var(--text-secondary)" 
+                                      fontSize={12} 
+                                      tickLine={false} 
+                                      axisLine={false}
+                                    />
+                                    <YAxis 
+                                      stroke="var(--text-secondary)" 
+                                      fontSize={12} 
+                                      tickLine={false} 
+                                      axisLine={false}
+                                    />
+                                    <Tooltip 
+                                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                      contentStyle={{ 
+                                        backgroundColor: 'var(--card-bg)', 
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '12px',
+                                        color: 'var(--text-primary)'
+                                      }}
+                                      itemStyle={{ color: 'var(--text-primary)' }}
+                                      labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '4px' }}
+                                    />
+                                    <Bar dataKey="roas" radius={[4, 4, 0, 0]}>
+                                      {chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.roas >= 2 ? 'var(--color-dominus-green)' : '#ff4e00'} />
+                                      ))}
+                                    </Bar>
+                                  </BarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+
+                            {/* Funnel Chart */}
+                            <div className="dominus-card p-8">
+                              <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+                                <BarChart3 size={18} className="text-dominus-green" />
+                                Gasto vs Vendas
+                              </h3>
+                              <div className="h-[350px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <LineChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                                    <Tooltip 
+                                      contentStyle={{ 
+                                        backgroundColor: 'var(--card-bg)', 
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '12px',
+                                        color: 'var(--text-primary)'
+                                      }}
+                                      itemStyle={{ color: 'var(--text-primary)' }}
+                                      labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold', marginBottom: '4px' }}
+                                    />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="gasto" stroke="#8884d8" strokeWidth={2} dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="vendas" stroke="var(--color-dominus-green)" strokeWidth={2} dot={{ r: 4 }} />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
