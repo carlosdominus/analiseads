@@ -20,7 +20,8 @@ import {
   DollarSign,
   ShoppingCart,
   ArrowRight,
-  Download
+  Download,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -88,6 +89,7 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   
   const dashboardRef = useRef<HTMLDivElement>(null);
 
@@ -239,6 +241,59 @@ export default function App() {
     }
   };
 
+  const exportToDocx = () => {
+    if (!currentAnalysis) return;
+    setShowExportMenu(false);
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>ATA de Análise de Ads</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #111; padding: 40px; }
+            h1, h2, h3 { color: #00D27A; }
+            pre { background: #f4f4f4; padding: 15px; border-radius: 8px; }
+            blockquote { border-left: 4px solid #00D27A; padding-left: 15px; margin-left: 0; color: #555; }
+          </style>
+        </head>
+        <body>
+          <h1>ATA de Análise de Performance</h1>
+          <p><strong>Data:</strong> ${new Date(currentAnalysis.timestamp).toLocaleString('pt-BR')}</p>
+          <hr/>
+          ${currentAnalysis.markdown
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+            .replace(/\*(.*?)\*/g, '<i>$1</i>')
+            .replace(/\n/g, '<br/>')}
+        </body>
+      </html>
+    `;
+    const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleDateString('pt-BR').replace(/\//g, '-') : new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    link.download = `ATA_Ads_${dateStr}.doc`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToMarkdown = () => {
+    if (!currentAnalysis) return;
+    setShowExportMenu(false);
+    const blob = new Blob([currentAnalysis.markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleDateString('pt-BR').replace(/\//g, '-') : new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    link.download = `ATA_Ads_${dateStr}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setHistory(prev => prev.filter(item => item.id !== id));
@@ -357,14 +412,53 @@ export default function App() {
                       >
                         Nova Análise
                       </button>
-                      <button 
-                        onClick={exportToPDF}
-                        disabled={isExporting}
-                        className="px-6 py-3 rounded-full border border-dominus-green/30 text-dominus-green font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                        <span>{isExporting ? 'Exportando...' : 'Exportar PDF'}</span>
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowExportMenu(!showExportMenu)}
+                          disabled={isExporting}
+                          className="px-6 py-3 rounded-full border border-dominus-green/30 text-dominus-green font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                          <span>{isExporting ? 'Exportando...' : 'Exportar'}</span>
+                          <ChevronDown size={16} />
+                        </button>
+
+                        <AnimatePresence>
+                          {showExportMenu && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                              className="absolute right-0 mt-2 w-48 bg-dominus-dark border border-white/10 rounded-2xl shadow-2xl py-2 z-50 backdrop-blur-xl"
+                            >
+                              <button
+                                onClick={() => {
+                                  setShowExportMenu(false);
+                                  exportToPDF();
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                              >
+                                <FileText size={16} className="text-dominus-green" />
+                                <span>PDF (.pdf)</span>
+                              </button>
+                              <button
+                                onClick={exportToDocx}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                              >
+                                <FileText size={16} className="text-blue-400" />
+                                <span>Word (.doc/.docx)</span>
+                              </button>
+                              <button
+                                onClick={exportToMarkdown}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                              >
+                                <FileText size={16} className="text-amber-400" />
+                                <span>Markdown (.md)</span>
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                       <button 
                         onClick={copyToClipboard}
                         className="dominus-button px-8 py-3 flex items-center gap-2"
