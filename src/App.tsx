@@ -47,6 +47,69 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function getTextFromChildren(children: any): string {
+  if (!children) return "";
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (Array.isArray(children)) {
+    return children.map(getTextFromChildren).join("");
+  }
+  if (children && typeof children === 'object' && children.props && children.props.children) {
+    return getTextFromChildren(children.props.children);
+  }
+  return "";
+}
+
+function getSentimentColorClass(text: string): string {
+  if (!text) return "";
+  const lower = text.toLowerCase();
+  
+  // High-priority negative words/emojis
+  if (
+    lower.includes("💀") || 
+    lower.includes("morreu") || 
+    lower.includes("pausado") || 
+    lower.includes("pausar") || 
+    lower.includes("reprovado") ||
+    lower.includes("ruim") ||
+    lower.includes("🚨") ||
+    lower.includes("❌")
+  ) {
+    return "sentiment-negative";
+  }
+  
+  // High-priority positive words/emojis
+  if (
+    lower.includes("🔥") || 
+    lower.includes("escalonou") || 
+    lower.includes("ativo") || 
+    lower.includes("escalar") || 
+    lower.includes("bom") ||
+    lower.includes("excelente") ||
+    lower.includes("aprovado") ||
+    lower.includes("🚀") ||
+    lower.includes("✅")
+  ) {
+    return "sentiment-positive";
+  }
+
+  // Check numeric metrics for ROAS/ROI in the line
+  if (lower.includes("roas") || lower.includes("roi")) {
+    const match = text.match(/[-+]?[0-9]*\.?[0-9]+/);
+    if (match) {
+      const val = parseFloat(match[0]);
+      if (val < 1.8) {
+        return "sentiment-negative";
+      } else if (val >= 1.8) {
+        return "sentiment-positive";
+      }
+    }
+  }
+
+  return "";
+}
+
+
 type AdData = {
   name: string;
   fullName?: string;
@@ -410,50 +473,19 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-10"
               >
-                <div className="sticky top-0 z-30 bg-dominus-black/95 backdrop-blur-md py-3 px-6 lg:px-12 border-b border-white/10 -mx-6 lg:-mx-12 flex flex-col xl:flex-row items-center justify-between gap-4">
-                  <div className="flex flex-col md:flex-row items-center gap-6 w-full xl:w-auto justify-between xl:justify-start">
-                    <div>
-                      <h2 className="text-xl font-display font-bold tracking-tight">
-                        Análise de <span className="text-dominus-green">Performance</span>
-                      </h2>
-                    </div>
-
-                    {currentAnalysis && (
-                      <div className="flex items-center gap-2 bg-dominus-dark/80 p-1 rounded-full border border-white/5">
-                        <button
-                          onClick={() => setSubView('resumo')}
-                          className={`px-4 py-1.5 rounded-full font-semibold text-xs transition-all flex items-center gap-1.5 ${
-                            subView === 'resumo' 
-                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_15px_rgba(0,210,122,0.4)]' 
-                              : 'text-dominus-gray hover:text-white'
-                          }`}
-                        >
-                          <FileText size={14} />
-                          <span>Resumo (ATA)</span>
-                        </button>
-                        <button
-                          onClick={() => setSubView('dashboard')}
-                          className={`px-4 py-1.5 rounded-full font-semibold text-xs transition-all flex items-center gap-1.5 ${
-                            subView === 'dashboard' 
-                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_15px_rgba(0,210,122,0.4)]' 
-                              : 'text-dominus-gray hover:text-white'
-                          }`}
-                        >
-                          <TrendingUp size={14} />
-                          <span>Dashboard & Gráficos</span>
-                        </button>
-                      </div>
-                    )}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                  <div>
+                    <h2 className="text-4xl font-display font-bold tracking-tight mb-2">
+                      Análise de <span className="text-dominus-green">Performance</span>
+                    </h2>
+                    <p className="text-dominus-gray">Transforme transcrições em inteligência de dados.</p>
                   </div>
                   
                   {currentAnalysis && (
-                    <div className="flex items-center gap-3 w-full xl:w-auto justify-end">
-                      <div className="text-xs text-dominus-gray font-mono hidden 2xl:block">
-                        {currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleString('pt-BR') : ''}
-                      </div>
+                    <div className="flex gap-3">
                       <button 
                         onClick={() => setCurrentAnalysis(null)}
-                        className="px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-semibold hover:bg-white/5 transition-colors"
+                        className="px-6 py-3 rounded-full border border-white/10 font-semibold hover:bg-white/5 transition-colors"
                       >
                         Nova Análise
                       </button>
@@ -461,11 +493,11 @@ export default function App() {
                         <button 
                           onClick={() => setShowExportMenu(!showExportMenu)}
                           disabled={isExporting}
-                          className="px-3.5 py-1.5 rounded-full border border-dominus-green/30 text-dominus-green text-xs font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-1 disabled:opacity-50"
+                          className="px-6 py-3 rounded-full border border-dominus-green/30 text-dominus-green font-semibold hover:bg-dominus-green/5 transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
-                          {isExporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                          {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                           <span>{isExporting ? 'Exportando...' : 'Exportar'}</span>
-                          <ChevronDown size={12} />
+                          <ChevronDown size={16} />
                         </button>
 
                         <AnimatePresence>
@@ -481,23 +513,23 @@ export default function App() {
                                   setShowExportMenu(false);
                                   exportToPDF();
                                 }}
-                                className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
                               >
-                                <FileText size={14} className="text-dominus-green" />
+                                <FileText size={16} className="text-dominus-green" />
                                 <span>PDF (.pdf)</span>
                               </button>
                               <button
                                 onClick={exportToDocx}
-                                className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
                               >
-                                <FileText size={14} className="text-blue-400" />
+                                <FileText size={16} className="text-blue-400" />
                                 <span>Word (.doc/.docx)</span>
                               </button>
                               <button
                                 onClick={exportToMarkdown}
-                                className="w-full text-left px-4 py-2.5 text-xs hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-white transition-colors"
                               >
-                                <FileText size={14} className="text-amber-400" />
+                                <FileText size={16} className="text-amber-400" />
                                 <span>Markdown (.md)</span>
                               </button>
                             </motion.div>
@@ -506,9 +538,9 @@ export default function App() {
                       </div>
                       <button 
                         onClick={copyToClipboard}
-                        className="dominus-button px-5 py-2 text-xs flex items-center gap-1.5"
+                        className="dominus-button px-8 py-3 flex items-center gap-2"
                       >
-                        {copied ? <CheckCircle2 size={14} /> : <ClipboardCopy size={14} />}
+                        {copied ? <CheckCircle2 size={18} /> : <ClipboardCopy size={18} />}
                         <span>{copied ? 'Copiado' : 'Copiar ATA'}</span>
                       </button>
                     </div>
@@ -590,12 +622,67 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="space-y-6">
+                    {/* Subheader Navigation Tabs */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                      <div className="flex items-center gap-3 bg-dominus-black/60 p-1.5 rounded-full border border-white/5">
+                        <button
+                          onClick={() => setSubView('resumo')}
+                          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all flex items-center gap-2 ${
+                            subView === 'resumo' 
+                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_20px_rgba(0,210,122,0.4)]' 
+                              : 'text-dominus-gray hover:text-white'
+                          }`}
+                        >
+                          <FileText size={16} />
+                          <span>Resumo (ATA)</span>
+                        </button>
+                        <button
+                          onClick={() => setSubView('dashboard')}
+                          className={`px-6 py-2.5 rounded-full font-semibold text-sm transition-all flex items-center gap-2 ${
+                            subView === 'dashboard' 
+                              ? 'bg-dominus-green text-dominus-black shadow-[0_0_20px_rgba(0,210,122,0.4)]' 
+                              : 'text-dominus-gray hover:text-white'
+                          }`}
+                        >
+                          <TrendingUp size={16} />
+                          <span>Dashboard & Gráficos</span>
+                        </button>
+                      </div>
+
+                      <div className="text-xs text-dominus-gray font-mono hidden sm:block">
+                        {currentAnalysis.timestamp ? new Date(currentAnalysis.timestamp).toLocaleString('pt-BR') : ''}
+                      </div>
+                    </div>
+
                     {/* Content Area */}
                     <div ref={dashboardRef} id="dashboard-capture" className="p-2 rounded-3xl">
                       {subView === 'resumo' ? (
                         <div className="dominus-card p-10 max-w-4xl mx-auto shadow-2xl">
                           <div className="markdown-body prose prose-invert max-w-none text-base leading-relaxed">
-                            <Markdown>{currentAnalysis.markdown}</Markdown>
+                            <Markdown
+                              components={{
+                                li: ({ node, children, ...props }) => {
+                                  const textContent = getTextFromChildren(children);
+                                  const sentimentClass = getSentimentColorClass(textContent);
+                                  return (
+                                    <li className={sentimentClass} {...props}>
+                                      {children}
+                                    </li>
+                                  );
+                                },
+                                p: ({ node, children, ...props }) => {
+                                  const textContent = getTextFromChildren(children);
+                                  const sentimentClass = getSentimentColorClass(textContent);
+                                  return (
+                                    <p className={sentimentClass} {...props}>
+                                      {children}
+                                    </p>
+                                  );
+                                }
+                              }}
+                            >
+                              {currentAnalysis.markdown}
+                            </Markdown>
                           </div>
                         </div>
                       ) : (
@@ -603,23 +690,31 @@ export default function App() {
                           {/* Charts & Stats */}
                           <div className="xl:col-span-3 space-y-8">
                             {/* Key Stats */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <StatCard 
-                                label="Total Gasto" 
-                                value={`R$ ${chartData.reduce((acc, curr) => acc + curr.gasto, 0).toFixed(2)}`} 
-                                icon={<DollarSign size={20} />}
-                              />
-                              <StatCard 
-                                label="Total Vendas" 
-                                value={chartData.reduce((acc, curr) => acc + curr.vendas, 0).toString()} 
-                                icon={<ShoppingCart size={20} />}
-                              />
-                              <StatCard 
-                                label="ROAS Médio" 
-                                value={(chartData.reduce((acc, curr) => acc + curr.roas, 0) / (chartData.length || 1)).toFixed(2)} 
-                                icon={<TrendingUp size={20} />}
-                              />
-                            </div>
+                            {(() => {
+                              const avgRoas = chartData.reduce((acc, curr) => acc + curr.roas, 0) / (chartData.length || 1);
+                              return (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  <StatCard 
+                                    label="Total Gasto" 
+                                    value={`R$ ${chartData.reduce((acc, curr) => acc + curr.gasto, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                                    icon={<DollarSign size={20} />}
+                                    trend="neutral"
+                                  />
+                                  <StatCard 
+                                    label="Total Vendas" 
+                                    value={chartData.reduce((acc, curr) => acc + curr.vendas, 0).toString()} 
+                                    icon={<ShoppingCart size={20} />}
+                                    trend="positive"
+                                  />
+                                  <StatCard 
+                                    label="ROAS Médio" 
+                                    value={avgRoas.toFixed(2)} 
+                                    icon={<TrendingUp size={20} />}
+                                    trend={avgRoas >= 1.8 ? 'positive' : 'negative'}
+                                  />
+                                </div>
+                              );
+                            })()}
 
                             {/* ROAS Comparison Chart */}
                             <div className="dominus-card p-8">
@@ -694,6 +789,68 @@ export default function App() {
                                     <Line type="monotone" dataKey="vendas" stroke="var(--color-dominus-green)" strokeWidth={2} dot={{ r: 4 }} />
                                   </LineChart>
                                 </ResponsiveContainer>
+                              </div>
+                            </div>
+
+                            {/* Detailed Performance Table */}
+                            <div className="dominus-card p-8">
+                              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                                <Users size={18} className="text-dominus-green" />
+                                Detalhamento de Performance por Ad
+                              </h3>
+                              <div className="overflow-x-auto text-white">
+                                <table className="w-full text-left text-sm border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-white/10 text-dominus-gray">
+                                      <th className="pb-4 font-bold text-[10px] uppercase tracking-wider">Anúncio / Identificador</th>
+                                      <th className="pb-4 font-bold text-[10px] uppercase tracking-wider">Status</th>
+                                      <th className="pb-4 font-bold text-[10px] uppercase tracking-wider text-right">Gasto</th>
+                                      <th className="pb-4 font-bold text-[10px] uppercase tracking-wider text-right">Vendas</th>
+                                      <th className="pb-4 font-bold text-[10px] uppercase tracking-wider text-right">ROAS</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-white/5">
+                                    {chartData.map((ad, idx) => {
+                                      const isNegative = ad.roas < 1.8;
+                                      return (
+                                        <tr key={idx} className="hover:bg-white/5 transition-colors">
+                                          <td className="py-4 font-medium max-w-xs md:max-w-md">
+                                            <div className="font-semibold text-white">{ad.name}</div>
+                                            <div className="text-xs text-dominus-gray mt-0.5 truncate" title={ad.fullName}>
+                                              {ad.fullName}
+                                            </div>
+                                          </td>
+                                          <td className="py-4">
+                                            <span className={cn(
+                                              "px-2.5 py-1 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5",
+                                              !isNegative 
+                                                ? "bg-dominus-green/15 text-dominus-green" 
+                                                : "bg-red-500/15 text-red-500"
+                                            )}>
+                                              <span className={cn(
+                                                "w-1.5 h-1.5 rounded-full",
+                                                !isNegative ? "bg-dominus-green animate-pulse" : "bg-red-500"
+                                              )} />
+                                              {!isNegative ? "Escalonou / Bom" : "Pausar / Ruim"}
+                                            </span>
+                                          </td>
+                                          <td className="py-4 text-right font-mono text-white">
+                                            R$ {ad.gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          </td>
+                                          <td className="py-4 text-right font-mono text-white">
+                                            {ad.vendas}
+                                          </td>
+                                          <td className={cn(
+                                            "py-4 text-right font-mono font-bold",
+                                            !isNegative ? "text-dominus-green" : "text-red-500"
+                                          )}>
+                                            {ad.roas.toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
                               </div>
                             </div>
                           </div>
@@ -863,15 +1020,25 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
   );
 }
 
-function StatCard({ label, value, icon }: { label: string, value: string, icon: React.ReactNode }) {
+function StatCard({ label, value, icon, trend }: { label: string, value: string, icon: React.ReactNode, trend?: 'positive' | 'negative' | 'neutral' }) {
   return (
     <div className="dominus-card p-6 flex items-center gap-4">
-      <div className="w-12 h-12 rounded-2xl bg-dominus-green/10 flex items-center justify-center text-dominus-green">
+      <div className={cn(
+        "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
+        trend === 'positive' ? "bg-dominus-green/10 text-dominus-green" :
+        trend === 'negative' ? "bg-red-500/10 text-red-500" :
+        "bg-dominus-green/10 text-dominus-green"
+      )}>
         {icon}
       </div>
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-dominus-gray mb-1">{label}</p>
-        <p className="text-xl font-display font-bold">{value}</p>
+        <p className={cn(
+          "text-xl font-display font-bold",
+          trend === 'positive' ? "text-dominus-green" :
+          trend === 'negative' ? "text-red-500" :
+          "text-white"
+        )}>{value}</p>
       </div>
     </div>
   );

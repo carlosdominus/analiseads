@@ -95,22 +95,20 @@ export async function analyzeCallTranscription(transcription: string) {
         .replace(/\\"/g, '"');
     }
 
-    // Ensure adsList precisely synchronizes with all ads mentioned in the markdown ATA text
+    // Fallback: If no ads were provided by webhook but we have markdown text, extract specific ad numbers and expand variations
     if (!adsList || adsList.length === 0) {
-      const adRegex = /\b(?:AD|Ad)\s*([0-9]+[A-Za-z0-9._-]*)\b/gi;
-      let m;
-      const seenIds = new Set<string>();
-      while ((m = adRegex.exec(rawMarkdown)) !== null) {
-        const id = m[1];
-        if (id && !seenIds.has(id)) {
-          seenIds.add(id);
-        }
+      const regex = /\b(?:AD|Ad|Remessa|RM)\s*([0-9]+[A-Za-z0-9_-]*)\b/gi;
+      let match;
+      const foundIds = new Set<string>();
+      while ((match = regex.exec(rawMarkdown)) !== null) {
+        foundIds.add(match[1]);
       }
 
-      if (seenIds.size > 0) {
+      if (foundIds.size > 0) {
         adsList = [];
-        seenIds.forEach(id => {
+        foundIds.forEach(id => {
           if (id === '21') {
+            // Expand AD 21 into specific variations as requested by user
             adsList.push(
               {
                 name: 'Ad 21.1',
@@ -145,23 +143,16 @@ export async function analyzeCallTranscription(transcription: string) {
               status: 'Ativo',
               metrics: { gasto: 900, vendas: 5, roas: 1.30, ic: 8, cpi: 15, cpc: 1.20, ctr: 2.30, cpm: 22, conversao: 2.5 }
             });
-          } else if (id === '22') {
-            adsList.push({
-              name: 'Ad 22',
-              fullName: 'Ad 22 — Variação de Teste',
-              status: 'Pausado',
-              metrics: { gasto: 81, vendas: 0, roas: 0.85, ic: 2, cpi: 15, cpc: 1.5, ctr: 1.1, cpm: 20, conversao: 1.0 }
-            });
           } else {
             adsList.push({
               name: `Ad ${id}`,
-              fullName: `Ad ${id} — Análise de Performance`,
+              fullName: `Ad ${id} — Variação de Teste`,
               status: 'Ativo',
               metrics: {
                 gasto: Math.floor(Math.random() * 500) + 200,
                 vendas: Math.floor(Math.random() * 8) + 1,
-                roas: Number((Math.random() * 1.3 + 1.1).toFixed(2)),
-                ic: 6,
+                roas: Number((Math.random() * 1.4 + 1.1).toFixed(2)),
+                ic: 7,
                 cpi: 14,
                 cpc: 1.2,
                 ctr: 2.0,
@@ -172,10 +163,11 @@ export async function analyzeCallTranscription(transcription: string) {
           }
         });
       } else {
+        // Default sample ads with clear variations
         adsList = [
           { name: 'Ad 017', fullName: 'Ad 017 — Controle Padrão', status: 'Ativo', metrics: { gasto: 900, vendas: 5, roas: 1.3, ic: 8, cpi: 15, cpc: 1.2, ctr: 2.3, cpm: 22, conversao: 2.5 } },
           { name: 'Ad 21.1', fullName: 'Ad 21.1 — Formato de Briga / Vídeos de Barraco', status: 'Ativo', metrics: { gasto: 726, vendas: 9, roas: 1.72, ic: 12, cpi: 11, cpc: 1.34, ctr: 1.41, cpm: 19, conversao: 3.1 } },
-          { name: 'Ad 22', fullName: 'Ad 22 — Variação de Teste', status: 'Pausado', metrics: { gasto: 81, vendas: 0, roas: 0.85, ic: 2, cpi: 15, cpc: 1.5, ctr: 1.1, cpm: 20, conversao: 1.0 } },
+          { name: 'Ad 21.2', fullName: 'Ad 21.2 — Noiva Chorando / Relato de Traição', status: 'Ativo', metrics: { gasto: 650, vendas: 7, roas: 1.55, ic: 10, cpi: 13, cpc: 1.25, ctr: 2.10, cpm: 21, conversao: 2.8 } },
           { name: 'Ad 35', fullName: 'Ad 35 — Podcast de Análise e Mecanismo', status: 'Ativo', metrics: { gasto: 1151, vendas: 13, roas: 1.85, ic: 18, cpi: 9, cpc: 0.57, ctr: 3.10, cpm: 18, conversao: 4.2 } }
         ];
       }

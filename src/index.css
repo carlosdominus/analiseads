@@ -98,14 +98,6 @@ body {
   word-break: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
-  overflow-x: auto;
-}
-
-.markdown-body p, .markdown-body li, .markdown-body pre, .markdown-body code, .markdown-body table {
-  max-width: 100%;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {
@@ -133,3 +125,15 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+/* Sentiment utility classes */
+.sentiment-positive {
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+.sentiment-negative {
+  color: #ff4e00 !important;
+  font-weight: 600 !important;
+}
+
