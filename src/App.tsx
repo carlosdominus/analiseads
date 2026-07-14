@@ -64,46 +64,114 @@ function getSentimentColorClass(text: string): string {
   if (!text) return "";
   const lower = text.toLowerCase();
   
-  // High-priority negative words/emojis
+  // 1. If it doesn't have data, it must be white (return empty)
   if (
-    lower.includes("💀") || 
-    lower.includes("morreu") || 
-    lower.includes("pausado") || 
-    lower.includes("pausar") || 
-    lower.includes("reprovado") ||
+    text.includes("—") || 
+    text.includes("---") ||
+    lower.includes("sem dados") || 
+    lower.includes("não informado") ||
+    lower.includes("não analisado") ||
+    lower.includes("sem informação")
+  ) {
+    return "";
+  }
+
+  // Helper to extract the first number (handles comma decimals, e.g., 4,71 -> 4.71)
+  const extractNumericValue = (str: string): number | null => {
+    const match = str.match(/([0-9]+(?:[.,][0-9]+)?)/);
+    if (!match) return null;
+    const clean = match[1].replace(',', '.');
+    const val = parseFloat(clean);
+    return isNaN(val) ? null : val;
+  };
+
+  // High-priority phrases for negative context (e.g., "não vendeu bem")
+  const hasNegativePhrases = 
+    lower.includes("não vendeu") || 
+    lower.includes("não performou") ||
+    lower.includes("baixo") || 
+    lower.includes("insuficiente") || 
+    lower.includes("prejuízo") || 
     lower.includes("ruim") ||
-    lower.includes("🚨") ||
-    lower.includes("❌")
+    lower.includes("queda") ||
+    lower.includes("piorou") ||
+    lower.includes("parar") ||
+    lower.includes("pausar");
+
+  // 2. Metric-specific evaluation
+  
+  // ROAS or ROI
+  if (lower.includes("roas") || lower.includes("roi")) {
+    if (hasNegativePhrases) return "sentiment-negative";
+    const val = extractNumericValue(text);
+    if (val !== null) {
+      return val >= 1.8 ? "sentiment-positive" : "sentiment-negative";
+    }
+  }
+
+  // Vendas (Sales)
+  if (lower.includes("vendas") || lower.includes("venda")) {
+    if (hasNegativePhrases) return "sentiment-negative";
+    const val = extractNumericValue(text);
+    if (val !== null) {
+      return val >= 3 ? "sentiment-positive" : "sentiment-negative";
+    }
+  }
+
+  // CTR
+  if (lower.includes("ctr")) {
+    const val = extractNumericValue(text);
+    if (val !== null) {
+      return val >= 1.5 ? "sentiment-positive" : "sentiment-negative";
+    }
+  }
+
+  // CPC (lower is better, e.g. <= 1.50 is good, >= 2.50 is bad)
+  if (lower.includes("cpc")) {
+    const val = extractNumericValue(text);
+    if (val !== null) {
+      return val <= 1.5 ? "sentiment-positive" : val >= 2.5 ? "sentiment-negative" : "";
+    }
+  }
+
+  // CPI, CPA, Custo por IC, Custo por Cadastro
+  if (
+    lower.includes("cpi") || 
+    lower.includes("cpa") || 
+    lower.includes("custo por ic") || 
+    lower.includes("custo por cadastro")
+  ) {
+    const val = extractNumericValue(text);
+    if (val !== null) {
+      return val <= 8.0 ? "sentiment-positive" : val >= 18.0 ? "sentiment-negative" : "";
+    }
+  }
+
+  // Conversão (Conversion Rate)
+  if (lower.includes("conversão") || lower.includes("conversao")) {
+    const val = extractNumericValue(text);
+    if (val !== null) {
+      return val >= 2.0 ? "sentiment-positive" : "sentiment-negative";
+    }
+  }
+
+  // 3. Fallback for non-metric lines using STRICT word boundaries (to avoid matching "criativo" for "ativo")
+  if (
+    /\b(pausado|pausada|pausar|pausados|pausadas|reprovado|reprovados|reprovada|ruim|ruins|morreu|prejuízo|alerta|parar)\b/i.test(text) ||
+    text.includes("💀") || 
+    text.includes("🚨") || 
+    text.includes("❌")
   ) {
     return "sentiment-negative";
   }
-  
-  // High-priority positive words/emojis
+
   if (
-    lower.includes("🔥") || 
-    lower.includes("escalonou") || 
-    lower.includes("ativo") || 
-    lower.includes("escalar") || 
-    lower.includes("bom") ||
-    lower.includes("excelente") ||
-    lower.includes("aprovado") ||
-    lower.includes("🚀") ||
-    lower.includes("✅")
+    /\b(ativo|ativa|ativos|ativas|escalonou|escalar|escala|escalou|bom|boa|bons|boas|excelente|excelentes|aprovado|aprovados|aprovada|lucro|lucros)\b/i.test(text) ||
+    text.includes("🔥") || 
+    text.includes("🚀") || 
+    text.includes("✅")
   ) {
     return "sentiment-positive";
-  }
-
-  // Check numeric metrics for ROAS/ROI in the line
-  if (lower.includes("roas") || lower.includes("roi")) {
-    const match = text.match(/[-+]?[0-9]*\.?[0-9]+/);
-    if (match) {
-      const val = parseFloat(match[0]);
-      if (val < 1.8) {
-        return "sentiment-negative";
-      } else if (val >= 1.8) {
-        return "sentiment-positive";
-      }
-    }
   }
 
   return "";
